@@ -1,23 +1,27 @@
-// tsup.config.ts
+import { defineConfig } from 'tsup';
+
 export default defineConfig([
+  // ESM + CJS — unminified, for bundlers (tree-shaking, source maps)
   {
     entry: ['src/index.ts'],
     format: ['esm', 'cjs'],
     dts: true,
     clean: true,
     sourcemap: true,
-    minify: false,   // ← czytelny build dla bundlerów
+    minify: false,
     splitting: false,
     treeshake: true,
     target: 'es2020',
   },
+  // IIFE — minified, for <script src> usage without a bundler
+  // Output: dist/entropy.min.js
   {
-    entry: ['src/index.ts'],
+    entry: { entropy: 'src/index.ts' },
     format: ['iife'],
-    globalName: 'Entropy',
-    outExtension: () => ({ js: '.global.min.js' }),
+    globalName: 'UEntropy',
+    outExtension: () => ({ js: '.min.js' }),
     sourcemap: true,
-    minify: true,    // ← minified IIFE dla <script src>
+    minify: true,
     splitting: false,
     treeshake: true,
     target: 'es2020',
