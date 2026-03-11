@@ -8,11 +8,15 @@
     .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin-top: 1rem; }
     .badge { display: inline-block; padding: .2rem .6rem; border-radius: 4px;
              font-size: .8rem; color: #fff; font-weight: bold; }
-    select, button { padding: .4rem .8rem; font-size: 1rem; cursor: pointer; }
+    select { padding: .4rem .8rem; font-size: 1rem; cursor: pointer; }
     .spinner { opacity: .5; font-style: italic; }
+    #build-error { font-family: sans-serif; padding: 2rem; }
+    #build-error code { background: #f3f4f6; padding: .2rem .4rem; border-radius: 4px; }
   </style>
 </head>
 <body>
+  <!-- Requires: npm run build  (generates dist/entropy.min.js) -->
+
   <h1>Async Post Viewer</h1>
   <p>Demonstrates async computed values and a custom <code>en-badge</code> directive.</p>
 
@@ -35,22 +39,23 @@
     <div class="card">
       <h2 en-mark="post.title"></h2>
       <p en-mark="post.body"></p>
-      <!-- Custom 'badge' parametric directive: en-badge="key:color" -->
       <span class="badge" en-badge="post.userId:royalblue">user</span>
     </div>
   </template>
 
-  <script src="../dist/index.global.js"></script>
+  <script src="../dist/entropy.min.js" onerror="
+    document.body.innerHTML = '<div id=build-error><h2>⚠️ Build required</h2><p>Run <code>npm run build</code> in the project root, then reload.</p></div>';
+  "></script>
   <script>
     const en = Entropy.default;
 
-    // Custom directive: en-badge="key:color"
+    // Custom parametric directive: en-badge="key:color"
     en.directive('badge', ({ el, value, param }) => {
       el.style.backgroundColor = param ?? '#888';
       el.textContent = 'User #' + value;
-    }, true /* isParametric */);
+    }, true);
 
-    window.data = en.init();
+    window.data  = en.init();
     data.postId  = 1;
     data.loading = false;
 

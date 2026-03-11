@@ -35,7 +35,7 @@
   </template>
 </head>
 <body>
-  <!-- Requires: npm run build  (generates dist/index.global.js) -->
+  <!-- Requires: npm run build  (generates dist/entropy.min.js) -->
 
   <h1>Web Components</h1>
   <p>Named <code>&lt;template&gt;</code> elements become custom elements automatically.</p>
@@ -74,7 +74,7 @@
     </p>
   </user-card>
 
-  <script src="../dist/index.global.js" onerror="
+  <script src="../dist/entropy.min.js" onerror="
     document.body.innerHTML = '<div id=build-error><h2>⚠️ Build required</h2><p>Run <code>npm run build</code> in the project root, then reload.</p></div>';
   "></script>
   <script>

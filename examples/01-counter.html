@@ -8,35 +8,31 @@
     button { padding: .4rem 1rem; font-size: 1rem; cursor: pointer; margin: 0 .25rem; }
     .count { font-size: 3rem; font-weight: bold; display: block; margin: 1rem 0; }
     .negative { color: #e11d48; }
+    #build-error { font-family: sans-serif; padding: 2rem; }
+    #build-error code { background: #f3f4f6; padding: .2rem .4rem; border-radius: 4px; }
   </style>
 </head>
 <body>
+  <!-- Requires: npm run build  (generates dist/entropy.min.js) -->
+
   <h1>Counter</h1>
-
   <span class="count" en-mark="count">0</span>
-
   <template en-if="isNegative">
     <p class="negative">Value is negative!</p>
   </template>
-
   <br /><br />
   <button onclick="data.count--">−</button>
   <button onclick="data.count = 0">Reset</button>
   <button onclick="data.count++">+</button>
 
-  <!--
-    Uses the IIFE build – works from file:// with no dev server needed.
-    Run `npm run build` once to generate dist/index.global.js.
-    window.Entropy.default is the singleton instance.
-  -->
-  <script src="../dist/index.global.js"></script>
+  <script src="../dist/entropy.min.js" onerror="
+    document.body.innerHTML = '<div id=build-error><h2>⚠️ Build required</h2><p>Run <code>npm run build</code> in the project root, then reload.</p></div>';
+  "></script>
   <script>
     const en = Entropy.default;
-
-    window.data = en.init();
+    window.data    = en.init();
     data.count      = 0;
     data.isNegative = en.computed(() => data.count < 0);
-
     en.watch('count', val => console.log('[watch] count =', val));
   </script>
 </body>
