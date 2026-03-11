@@ -15,8 +15,6 @@ The core idea is simple: wrap your data in `en.init()`, put `en-mark` on the ele
 </script>
 ```
 
----
-
 ## Installation
 
 ```bash
@@ -40,7 +38,6 @@ import en from 'uentropy';
 const data = en.init();
 ```
 
----
 
 ## How it works
 
@@ -80,7 +77,6 @@ const data = en.init(); // 3. starts reactivity, scans DOM for templates
 data.count = 0;       // 4. assign reactive keys after init()
 ```
 
----
 
 ## Directives
 
@@ -242,7 +238,6 @@ The callback receives:
 - `key` — full dotted key string (e.g. `"user.name"`)
 - `isDelete` — `true` when the property was deleted
 
----
 
 ## API
 
@@ -376,7 +371,6 @@ Removes all event listeners, clears watchers, stops all updates. Call when teari
 en.destroy();
 ```
 
----
 
 ## Multiple instances
 
@@ -403,7 +397,6 @@ dataB.count = 0;
 enA.destroy();
 ```
 
----
 
 ## Limits
 
@@ -443,7 +436,6 @@ data.items = data.items.filter(x => x.done); // updates the DOM
 
 **Web Components require Shadow DOM.** Named `<template>` registration uses `attachShadow`. Works in all modern browsers, no fallback for older environments.
 
----
 
 ## License
 
