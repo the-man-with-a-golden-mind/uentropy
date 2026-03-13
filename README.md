@@ -1,6 +1,13 @@
 # uentropy
 
-A small reactive DOM library. No virtual DOM, no compiler, no JSX. You write plain HTML with a few extra attributes and plain JavaScript — uentropy keeps them in sync.
+> This project is heavily inspired by the amazing work of **Alan** ([@18alantom](https://github.com/18alantom)) and his 🍓: https://github.com/18alantom/strawberry
+
+
+A small reactive DOM library. 
+* No virtual DOM, no compiler
+* No JSX. 
+* You write plain HTML with a few extra attributes and plain JavaScript.
+
 
 The core idea is simple: wrap your data in `en.init()`, put `en-mark` on the elements that should display it, and that's most of what you need to know.
 
@@ -21,7 +28,7 @@ The core idea is simple: wrap your data in `en.init()`, put `en-mark` on the ele
 npm install uentropy
 ```
 
-Drop the IIFE build into your HTML — no bundler, no build step:
+Drop the IIFE build into your HTML. No bundler, no build step:
 
 ```html
 <script src="https://cdn.jsdelivr.net/npm/uentropy/dist/entropy.min.js"></script>
@@ -41,23 +48,23 @@ const data = en.init();
 
 ## How it works
 
-`en.init()` returns a `Proxy` wrapping an empty object. Setting any property on it triggers a DOM scan for elements whose directive attribute matches that key, then updates them. No diffing, no scheduling — just a `set` trap and `querySelectorAll`.
+`en.init()` returns a `Proxy` wrapping an empty object. Setting any property on it triggers a DOM scan for elements whose directive attribute matches that key, then updates them. No diffing, no scheduling, just a `set` trap and `querySelectorAll`.
 
-**Important:** `en.init()` starts with an empty object. You must assign all keys explicitly after calling it. The order matters — assign parent objects before accessing nested keys.
+**Important:** `en.init()` starts with an empty object. You must assign all keys explicitly after calling it. The order matters so assign parent objects before accessing nested keys.
 
 ```js
 const data = en.init();
 
-// correct — assign the parent first
+// correct: assign the parent first
 data.user = { name: 'Alice', age: 30 };
 
-// also correct — assign keys individually
+// also correct: assign keys individually
 data.user = {};
 data.user.name = 'Alice';
 data.user.age  = 30;
 ```
 
-**`window.data` vs `const data`** — examples use `window.data` so that inline `onclick="data.count++"` attributes can access the reactive object from the global scope. If you use `addEventListener` instead of inline handlers, a local `const data` works fine and is cleaner.
+**`window.data` vs `const data`** :  examples use `window.data` so that inline `onclick="data.count++"` attributes can access the reactive object from the global scope. If you use `addEventListener` instead of inline handlers, a local `const data` works fine and is cleaner.
 
 ```js
 // needs window.data because onclick runs in global scope
@@ -68,11 +75,11 @@ const data = en.init();
 document.getElementById('btn').addEventListener('click', () => data.count++);
 ```
 
-**Initialization order** — always follow this sequence:
+**Initialization order** always follow this sequence:
 
 ```js
-en.prefix('x');       // 1. optional — must be before init()
-en.directive(...);    // 2. optional — must be before init()
+en.prefix('x');       // 1. optional: must be before init()
+en.directive(...);    // 2. optional: must be before init()
 const data = en.init(); // 3. starts reactivity, scans DOM for templates
 data.count = 0;       // 4. assign reactive keys after init()
 ```
@@ -98,7 +105,7 @@ data.config = { theme: 'dark', lang: 'en' };
 // → pre gets: {"theme":"dark","lang":"en"}
 ```
 
-Do not combine `en-mark` and `en-model` on the same element — use separate elements for display and input.
+Do not combine `en-mark` and `en-model` on the same element, use separate elements for display and input.
 
 ```html
 <!-- wrong — conflicting directives on one element -->
@@ -111,7 +118,7 @@ Do not combine `en-mark` and `en-model` on the same element — use separate ele
 
 ### `en-model`
 
-Two-way binding. Keeps a reactive key and an input in sync — no `oninput` handler needed.
+Two-way binding. Keeps a reactive key and an input in sync: no `oninput` handler needed.
 
 ```html
 <!-- text -->
@@ -215,7 +222,7 @@ delete data.message; // removes the element bound to "message"
 Register your own with `en.directive(name, callback, isParametric?)`. Must be called before `en.init()`.
 
 ```js
-// simple directive — en-color="key"
+// simple directive: en-color="key"
 en.directive('color', ({ el, value }) => {
   el.style.color = String(value);
 });
@@ -243,7 +250,7 @@ The callback receives:
 
 ### `en.init()`
 
-Returns the reactive data proxy. Idempotent — multiple calls return the same proxy. Call once, then assign keys on the returned object.
+Returns the reactive data proxy. Idempotent: multiple calls return the same proxy. Call once, then assign keys on the returned object.
 
 ```js
 const data = en.init();
@@ -285,7 +292,7 @@ data.post = en.computed(async () => {
 </template>
 ```
 
-**Dependency tracking** is key-based and re-evaluated on every execution. If a computed conditionally reads different keys (`data.flag ? data.a : data.b`), the dep graph updates correctly on each run — only the keys actually read during the last execution are tracked.
+**Dependency tracking** is key-based and reevaluated on every execution. If a computed conditionally reads different keys (`data.flag ? data.a : data.b`), the dep graph updates correctly on each run — only the keys actually read during the last execution are tracked.
 
 ### `en.watch(key, fn)`
 
@@ -404,7 +411,7 @@ These are deliberate trade-offs, not bugs.
 
 **Scale.** `querySelectorAll` runs on every reactive write. Results are cached between writes and invalidated by a `MutationObserver` when the DOM changes. For small-to-medium DOMs this is faster than virtual DOM diffing. Beyond ~2000–3000 active reactive elements the cost starts to compound, especially on replace-all operations. Use `en.batch()` for bulk writes.
 
-**No key-based reconciliation.** When you reassign an array (`data.rows = newRows`), uentropy removes all existing item elements and recreates them from the template. Frameworks like Preact and Vue reuse DOM nodes by key — uentropy does not. For lists that update frequently and partially, mutate in place rather than replacing the whole array.
+**No key-based reconciliation.** When you reassign an array (`data.rows = newRows`), uentropy removes all existing item elements and recreates them from the template. Frameworks like Preact and Vue reuse DOM nodes by key, uentropy does not. For lists that update frequently and partially, mutate in place rather than replacing the whole array.
 
 ```js
 // expensive — destroys and recreates all DOM nodes
@@ -415,7 +422,7 @@ const idx = data.items.findIndex(x => x.id === id);
 data.items.splice(idx, 1);
 ```
 
-**Reactive arrays are shallow.** `push`, `splice`, and index assignment are tracked. Methods that return a new array (`map`, `filter`, `reduce`) are not — assign the result back to trigger an update.
+**Reactive arrays are shallow.** `push`, `splice`, and index assignment are tracked. Methods that return a new array (`map`, `filter`, `reduce`) are not. Assign the result back to trigger an update.
 
 ```js
 data.items.filter(x => x.done);          // does nothing to the DOM
@@ -424,7 +431,7 @@ data.items = data.items.filter(x => x.done); // updates the DOM
 
 **No SSR.** uentropy reads and writes the live DOM. There is no string rendering path.
 
-**Computed dependency tracking is key-based.** A computed re-runs when any key it read during its last execution is set — regardless of whether the value actually changed. Avoid expensive work inside computeds that depend on frequently-changing keys.
+**Computed dependency tracking is key-based.** A computed re-runs when any key it read during its last execution is set, regardless of whether the value actually changed. Avoid expensive work inside computeds that depend on frequently-changing keys.
 
 **`en-mark` on objects serialises to JSON.** There is no template syntax inside a mark value. Use custom directives or nested elements for structured output.
 

@@ -1,7 +1,6 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig([
-  // ESM + CJS — unminified, for bundlers (tree-shaking, source maps)
   {
     entry: ['src/index.ts'],
     format: ['esm', 'cjs'],
@@ -13,8 +12,6 @@ export default defineConfig([
     treeshake: true,
     target: 'es2020',
   },
-  // IIFE — minified, for <script src> usage without a bundler
-  // Output: dist/entropy.min.js
   {
     entry: { entropy: 'src/index.ts' },
     format: ['iife'],

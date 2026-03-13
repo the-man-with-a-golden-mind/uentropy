@@ -5,7 +5,6 @@ export default defineConfig({
     environment: 'happy-dom',
     globals: true,
     include: ['tests/**/*.test.ts'],
-    // Shared setup – same file used by `bun test` via bunfig.toml
     setupFiles: ['./tests/setup.ts'],
     coverage: {
       provider: 'v8',
