@@ -72,7 +72,7 @@ function queryAll(
   root: Document | Element,
   query: string,
 ): Element[] {
-  if (!(root instanceof Document) || !ctx.useCache) {
+  if (!(root instanceof Document)) {
     return Array.from(root.querySelectorAll(query));
   }
   const cached = ctx.elementCache.get(query);
@@ -527,23 +527,41 @@ function ifOrIfNot(
   const attrMark = ctx.prefix + 'mark';
 
   if (isShow && isTemplate) {
-    const child = el.content.firstElementChild;
-    if (!child) return;
+    const children = Array.from(el.content.children);
+    if (!children.length) return;
 
-    child.setAttribute(attrType, key);
-    syncNode(ctx, child, true);
-    el.replaceWith(child);
+    // Mark every child with the directive attr so they can be collected back
+    // into a template when the condition flips. Use a DocumentFragment so
+    // all children are inserted in a single DOM operation.
+    const fragment = document.createDocumentFragment();
+    children.forEach(child => {
+      child.setAttribute(attrType, key);
+      syncNode(ctx, child, true);
+      fragment.appendChild(child.cloneNode(true));
+    });
+    el.replaceWith(fragment);
   }
 
   if (!isShow && !isTemplate) {
+    // Collect this element AND any following siblings that share the same
+    // directive key (i.e. were part of the same multi-child template).
+    const siblings: Element[] = [el];
+    let next = el.nextElementSibling;
+    while (next && next.getAttribute(ctx.prefix + type) === key) {
+      siblings.push(next);
+      next = next.nextElementSibling;
+    }
+
     const temp = document.createElement('template');
-    temp.content.appendChild(el.cloneNode(true));
+    siblings.forEach(s => temp.content.appendChild(s.cloneNode(true)));
     temp.setAttribute(attrType, key);
 
     const mark = el.getAttribute(attrMark);
     if (mark) temp.setAttribute(attrMark, mark);
 
+    // Replace first sibling with template, remove the rest
     el.replaceWith(temp);
+    siblings.slice(1).forEach(s => s.remove());
   }
 }
 
