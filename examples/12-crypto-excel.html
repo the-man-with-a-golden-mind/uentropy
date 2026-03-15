@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>uentropy × CoinGecko – Crypto Excel</title>
+  <link rel="stylesheet" href="https://unpkg.com/uplot@1.6.31/dist/uPlot.min.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f8fafc; height: 100dvh;
+      display: flex; flex-direction: column; overflow: hidden; color: #1e293b;
+    }
+
+    /* ── Toolbar ──────────────────────────────────────────────────────────── */
+    #toolbar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 0 14px; height: 42px; flex-shrink: 0;
+      background: #1e1b4b; color: #e0e7ff; font-size: 13px;
+    }
+    #brand    { font-weight: 800; color: #a5b4fc; font-size: 14px; letter-spacing: -.3px; white-space: nowrap; }
+    .vsep     { width: 1px; height: 20px; background: #3730a3; flex-shrink: 0; }
+    .flex-gap { flex: 1; }
+    .spin     { display: inline-block; animation: spin .9s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* search input */
+    #search-input {
+      flex: 1; max-width: 220px; min-width: 100px;
+      border: 1px solid #4338ca; border-radius: 4px;
+      background: #312e81; color: #e0e7ff;
+      padding: 4px 10px; font-size: 12px; outline: none;
+    }
+    #search-input::placeholder { color: #6366f1; }
+    #search-input:focus { border-color: #818cf8; background: #3730a3; }
+
+    .tbtn {
+      font-size: 12px; padding: 4px 11px; cursor: pointer; white-space: nowrap;
+      border: 1px solid #4338ca; border-radius: 4px;
+      background: #312e81; color: #c7d2fe;
+    }
+    .tbtn:hover { background: #3730a3; }
+
+    /* auto-refresh badge */
+    #auto-badge {
+      font-size: 11px; padding: 3px 9px; cursor: pointer; white-space: nowrap;
+      border: 1px solid #4338ca; border-radius: 10px;
+      background: #312e81; color: #818cf8; font-variant-numeric: tabular-nums;
+    }
+    #auto-badge.on  { color: #a5b4fc; border-color: #6366f1; }
+    #auto-badge:hover { background: #3730a3; }
+
+    #upd { font-size: 11px; color: #818cf8; white-space: nowrap; }
+
+    /* ── Table ────────────────────────────────────────────────────────────── */
+    #main { flex: 1; min-height: 0; overflow-y: auto; }
+
+    #coin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    #coin-table thead tr {
+      position: sticky; top: 0; z-index: 20;
+      background: #f1f5f9; border-bottom: 2px solid #cbd5e1;
+    }
+    #coin-table th {
+      padding: 8px 12px; text-align: right; font-size: 11px; font-weight: 700;
+      color: #64748b; white-space: nowrap; user-select: none;
+      cursor: pointer; transition: background .1s, color .1s;
+    }
+    #coin-table th:hover { background: #e2e8f0; color: #334155; }
+    #coin-table th.sort-active { color: #4338ca !important; background: #eef2ff; }
+    #coin-table th:nth-child(1),
+    #coin-table th:nth-child(2),
+    #coin-table th:nth-child(3) { text-align: left; }
+
+    #coin-table td { padding: 6px 12px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; }
+    #coin-table tbody tr { transition: background .1s; }
+    #coin-table tbody tr:hover   { background: #f8fafc; }
+    #coin-table tbody tr.selected { background: #eef2ff !important; }
+    #coin-table tbody tr.selected td { color: #4338ca; }
+
+    .num-cell  { text-align: right; font-variant-numeric: tabular-nums; }
+    .sym-cell  { font-weight: 700; color: #6366f1; font-size: 11px; }
+    .pct-cell  { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+    .name-cell { font-weight: 600; }
+    #coin-table td[colspan] { padding: 40px; text-align: center; color: #94a3b8; font-size: 14px; }
+
+    /* ── Draggable chart panel ─────────────────────────────────────────────── */
+    #chart-panel {
+      position: fixed; right: 20px; bottom: 40px; width: 500px;
+      background: #fff; border-radius: 10px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.15), 0 2px 8px rgba(0,0,0,.08);
+      border: 1px solid #e2e8f0; overflow: hidden; z-index: 100; display: none;
+    }
+    #chart-panel.visible { display: block; }
+    #chart-handle {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 12px; background: #1e1b4b; color: #e0e7ff;
+      cursor: move; user-select: none; font-size: 13px; font-weight: 700;
+    }
+    #chart-handle .tbtn-sm {
+      font-size: 11px; padding: 2px 7px; cursor: pointer;
+      border: 1px solid #4338ca; border-radius: 4px;
+      background: #312e81; color: #c7d2fe;
+    }
+    #chart-handle .tbtn-sm:hover { background: #3730a3; }
+    #chart-host { padding: 8px; }
+
+    /* ── Footer ───────────────────────────────────────────────────────────── */
+    #footer {
+      height: 26px; display: flex; align-items: center; justify-content: space-between;
+      padding: 0 14px; font-size: 11px; color: #64748b;
+      background: #f1f5f9; border-top: 1px solid #e2e8f0; flex-shrink: 0;
+    }
+    #footer b   { color: #334155; }
+    #data-src a { color: #6366f1; text-decoration: none; }
+    #data-src a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<!-- ── Toolbar ──────────────────────────────────────────────────────────────── -->
+<div id="toolbar">
+  <span id="brand">⚡ uentropy × CoinGecko</span>
+  <div class="vsep"></div>
+
+  <!--
+    en-model="search" — built-in two-way binding.
+    User typing updates data.search → watch fires → filterDOM() re-filters table.
+  -->
+  <input id="search-input" en-model="search" type="search"
+         placeholder="Search name or symbol…" autocomplete="off" />
+
+  <div class="vsep"></div>
+
+  <!--
+    en-if / en-ifnot swap spinner ↔ status text driven by data.loading.
+  -->
+  <template en-if="loading"><span class="spin">◌</span>&nbsp;Fetching…</template>
+  <span en-ifnot="loading" en-mark="status"></span>
+
+  <div class="vsep"></div>
+  <span id="upd">Updated: <b en-mark="lastUpdate">—</b></span>
+  <div class="flex-gap"></div>
+
+  <!--
+    en-mark="autoLabel" — shows countdown "⟳ 8s" or "⟳ off".
+    autoLabel is a computed that re-evaluates every second.
+    en-cls="autoRefresh:on" — toggles .on class reactively via directive.
+    en-click="ready:toggleAuto" attaches click listener via directive.
+  -->
+  <span id="auto-badge" en-mark="autoLabel" en-cls="autoRefresh:on" en-click="ready:toggleAuto"></span>
+  <button class="tbtn" en-click="ready:refresh">↺ Refresh</button>
+</div>
+
+<!-- ── Table ────────────────────────────────────────────────────────────────── -->
+<div id="main">
+  <table id="coin-table">
+    <thead>
+      <tr>
+        <!--
+          en-sort-header="sortSig:KEY" — custom parametric directive.
+          sortSig is a computed: sortKey + (sortAsc ? '+' : '-').
+          Fires for all headers whenever the sort state changes.
+          Each header gets: visual indicator updated + click listener (once).
+        -->
+        <th en-sort-header="sortSig:rank">#</th>
+        <th en-sort-header="sortSig:name">Name</th>
+        <th en-sort-header="sortSig:symbol">Symbol</th>
+        <th en-sort-header="sortSig:price">Price (USD)</th>
+        <th en-sort-header="sortSig:change24h">24 h %</th>
+        <th en-sort-header="sortSig:change7d">7 d %</th>
+        <th en-sort-header="sortSig:marketCap">Market Cap</th>
+        <th en-sort-header="sortSig:volume">Volume 24 h</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!--
+        en-if="loading" — uentropy inserts the loading row while data.loading
+        is true and removes it automatically when loading becomes false.
+        No manual .remove() needed.
+      -->
+      <template en-if="loading">
+        <tr><td colspan="8">⏳ loading coins…</td></tr>
+      </template>
+
+      <!--
+        en-mark="coins.#" renders one <tr> per coin.
+        en-select fires when a row is first rendered — extracts its index
+        from the reactive key ('coins.3' → 3) and attaches click-to-select.
+        en-selected="selectedIdx" fires whenever selectedIdx changes,
+        toggling .selected on every row reactively (no manual querySelectorAll loop).
+      -->
+      <template en-mark="coins.#">
+        <tr en-select="coins.#" en-selected="selectedIdx">
+          <td en-mark="coins.#.rank"></td>
+          <td class="name-cell" en-mark="coins.#.name"></td>
+          <td class="sym-cell"  en-mark="coins.#.symbol"></td>
+          <td class="num-cell"  en-price="coins.#.price"></td>
+          <td class="pct-cell"  en-pct="coins.#.change24h"></td>
+          <td class="pct-cell"  en-pct="coins.#.change7d"></td>
+          <td class="num-cell"  en-large="coins.#.marketCap"></td>
+          <td class="num-cell"  en-large="coins.#.volume"></td>
+        </tr>
+      </template>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── Draggable chart panel ─────────────────────────────────────────────────── -->
+<!--
+  en-cls="chartVisible:visible" — uentropy adds/removes .visible reactively
+  when data.chartVisible changes. No manual classList calls needed.
+-->
+<div id="chart-panel" en-cls="chartVisible:visible">
+  <!--
+    en-drag="ready" — fires once at boot, attaches mousedown drag logic.
+    Uses el.parentElement to reference the panel without a JS DOM ref.
+  -->
+  <div id="chart-handle" en-drag="ready">
+    <span en-mark="chartTitle">Select a row</span>
+    <button class="tbtn-sm" en-click="ready:closeChart">✕</button>
+  </div>
+  <!--
+    en-chart="selectedIdx" re-renders uPlot whenever the selected row changes.
+  -->
+  <div id="chart-host" en-chart="selectedIdx"></div>
+</div>
+
+<!-- ── Footer ───────────────────────────────────────────────────────────────── -->
+<div id="footer">
+  <span>Showing <b en-mark="coinCount">—</b> coins · click header to sort · click row to chart</span>
+  <span id="data-src">
+    Data: <a href="https://www.coingecko.com" target="_blank">CoinGecko</a> ·
+    Chart: <a href="https://github.com/leeoniya/uPlot" target="_blank">uPlot</a>
+  </span>
+</div>
+
+<script src="../dist/entropy.min.js" onerror="
+  document.body.innerHTML='<div style=padding:2rem;font-family:system-ui><h2>⚠ Run <code>npm run build</code> first</h2></div>';
+"></script>
+<script src="https://unpkg.com/uplot@1.6.31/dist/uPlot.iife.min.js"></script>
+<script>
+'use strict';
+
+// ─── uentropy model ───────────────────────────────────────────────────────────
+//
+// • data.coins        — full coin dataset (set once per fetch, drives uentropy
+//                       array rendering). Sort/filter are pure DOM ops — they
+//                       never reassign this array, so rows are never rebuilt.
+// • data.coinCount    — visible row count (updated by filterDOM, not computed)
+// • data.selectedIdx  — index into data.coins → drives en-chart + en-selected
+// • data.chartVisible — drives en-cls on #chart-panel (.visible class)
+// • data.chartTitle   — set by en-chart directive
+// • data.loading      — drives en-if / en-ifnot spinner + loading row
+// • data.status / data.lastUpdate — toolbar display
+// • data.search       — two-way bound to search input via en-model
+// • data.sortKey / data.sortAsc — sort state (no array rebuild on change)
+// • data.sortSig      — computed: sortKey+(/-) → drives en-sort-header visuals
+// • data.autoRefresh / data.countdown / data.autoLabel — auto-refresh
+// • data.autoRefresh  — also drives en-cls on #auto-badge (.on class)
+// • data.ready        — set once at boot → triggers en-click / en-drag setup
+//
+const en   = UEntropy.createInstance();
+const data = en.init();
+
+data.coins        = [];
+data.coinCount    = 0;
+data.selectedIdx  = -1;
+data.chartVisible = false;
+data.chartTitle   = 'Select a row';
+data.loading      = true;
+data.status       = '';
+data.lastUpdate   = '—';
+data.search       = '';
+
+// rawCoins — plain JS array (never reactive).
+// Used as sort/filter source and for chart sparkline access.
+// data.coins[i] and rawCoins[i] always refer to the same coin (same index order).
+let rawCoins = [];
+
+// ─── DOM refs ────────────────────────────────────────────────────────────────
+// Only coinTbody is kept — sortDOM/filterDOM are deliberately DOM-only for
+// performance and need it. chart-panel, auto-badge, and loading-row are all
+// managed reactively via directives and need no JS refs.
+
+const coinTbody = document.querySelector('#coin-table tbody');
+
+// ─── Utilities ───────────────────────────────────────────────────────────────
+
+function debounce(fn, ms) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+function fmtPrice(n) {
+  if (n == null || isNaN(n)) return '—';
+  if (n >= 1000) return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  if (n >= 1)    return '$' + n.toFixed(2);
+  return '$' + n.toPrecision(4);
+}
+
+function fmtLarge(n) {
+  if (n == null || isNaN(n)) return '—';
+  if (n >= 1e12) return '$' + (n / 1e12).toFixed(2) + 'T';
+  if (n >= 1e9)  return '$' + (n / 1e9).toFixed(1) + 'B';
+  if (n >= 1e6)  return '$' + (n / 1e6).toFixed(1) + 'M';
+  return '$' + n.toLocaleString('en-US');
+}
+
+// ─── DOM-only sort & filter ───────────────────────────────────────────────────
+//
+// Neither function touches data.coins — so uentropy never rebuilds rows.
+// Sort: reads rawCoins[] for comparator values (no proxy overhead in hot path),
+//       moves rows into a DocumentFragment → single reflow per sort.
+// Filter: toggles style.display on each row → O(n) style writes, no DOM clones.
+// Both operate on data-idx attributes set by en-select during initial render.
+
+function sortDOM() {
+  const rows = Array.from(coinTbody.querySelectorAll('tr[data-idx]'));
+  if (!rows.length) return;
+
+  const key = data.sortKey;
+  const asc = data.sortAsc;
+
+  rows.sort((a, b) => {
+    // rawCoins access — plain object, no proxy overhead in the comparator
+    const av = rawCoins[+a.dataset.idx]?.[key] ?? 0;
+    const bv = rawCoins[+b.dataset.idx]?.[key] ?? 0;
+    if (typeof av === 'string') return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+    return asc ? av - bv : bv - av;
+  });
+
+  // Batch all row moves into a single DocumentFragment → one browser reflow
+  const frag = document.createDocumentFragment();
+  for (const row of rows) frag.appendChild(row);
+  coinTbody.appendChild(frag);
+}
+
+function filterDOM() {
+  const q = (data.search ?? '').toLowerCase().trim();
+  let visible = 0;
+  let selStillVisible = false;
+
+  for (const row of coinTbody.querySelectorAll('tr[data-idx]')) {
+    const coin = rawCoins[+row.dataset.idx];
+    const show = !q ||
+      coin.name.toLowerCase().includes(q) ||
+      coin.symbol.toLowerCase().includes(q);
+    row.style.display = show ? '' : 'none';
+    if (show) {
+      visible++;
+      if (+row.dataset.idx === data.selectedIdx) selStillVisible = true;
+    }
+  }
+
+  data.coinCount = visible;
+
+  // If the selected coin was filtered out, auto-select the first visible row
+  if (!selStillVisible) {
+    const first = coinTbody.querySelector('tr[data-idx]:not([style*="none"])');
+    if (first) data.selectedIdx = +first.dataset.idx;
+  }
+}
+
+// ─── Custom directives ────────────────────────────────────────────────────────
+//
+// Registered BEFORE the reactive values that fire them (sortSig, autoRefresh,
+// autoLabel, ready) are set, so the first reactive assignment already finds
+// all bound elements.
+
+en.directive('price', ({ el, value }) => {
+  el.textContent = fmtPrice(+value);
+});
+
+en.directive('large', ({ el, value }) => {
+  el.textContent = fmtLarge(+value);
+});
+
+en.directive('pct', ({ el, value }) => {
+  const n = value != null ? +value : NaN;
+  if (isNaN(n)) { el.textContent = '—'; el.style.color = '#94a3b8'; return; }
+  el.textContent = (n > 0 ? '+' : '') + n.toFixed(2) + '%';
+  el.style.color = n > 0 ? '#16a34a' : n < 0 ? '#dc2626' : '#64748b';
+});
+
+// ── en-cls (parametric) ───────────────────────────────────────────────────────
+//
+// Toggles a CSS class on the element based on a reactive boolean value.
+// Attribute format: en-cls="reactiveKey:className"
+// Replaces all manual classList.toggle/add/remove calls for reactive state.
+//
+en.directive('cls', ({ el, value, param }) => {
+  if (param) el.classList.toggle(param, !!value);
+}, true);
+
+// ── en-selected ───────────────────────────────────────────────────────────────
+//
+// Fires for every <tr en-selected="selectedIdx"> whenever selectedIdx changes.
+// Toggles .selected on the row whose data-idx matches the new selection.
+// Replaces the manual highlightRow() querySelectorAll loop + en.watch().
+//
+en.directive('selected', ({ el, value }) => {
+  // el.dataset.idx is set by en-select when the row is first rendered
+  if (el.dataset.idx === undefined) return;
+  el.classList.toggle('selected', +el.dataset.idx === +value);
+});
+
+// ── en-sort-header (parametric) ──────────────────────────────────────────────
+//
+// Bound as en-sort-header="sortSig:COLKEY".
+// sortSig is a computed — when either sortKey or sortAsc changes, sortSig
+// recomputes and this directive fires for ALL 8 headers at once.
+// Visual update runs on every call; click handler attaches only once.
+//
+en.directive('sort-header', ({ el, value, param }) => {
+  const activeCol = value.slice(0, -1);
+  const activeDir = value.slice(-1);
+  const isActive  = activeCol === param;
+
+  if (!el._ind) {
+    el._ind = document.createElement('span');
+    el._ind.style.cssText = 'margin-left:3px;font-size:10px;';
+    el.appendChild(el._ind);
+  }
+  el._ind.textContent = isActive ? (activeDir === '+' ? '↑' : '↓') : '';
+  el.classList.toggle('sort-active', isActive);
+
+  if (el._sortReady) return;
+  el._sortReady = true;
+
+  el.addEventListener('click', () => {
+    const wasActive = data.sortKey === param;
+    data.sortKey = param;
+    // Text columns: default asc. Numeric columns: default desc (largest first).
+    data.sortAsc = wasActive
+      ? !data.sortAsc
+      : (param === 'rank' || param === 'name' || param === 'symbol');
+    // sortDOM() only — no uentropy array rebuild, just reorder existing rows
+    sortDOM();
+  });
+}, true);
+
+// ── en-select ────────────────────────────────────────────────────────────────
+//
+// Fires when coins.N is rendered by uentropy's array mechanism.
+// Extracts the coin index from the reactive key, stores it on dataset.idx,
+// then attaches a click listener. All sort/filter operations preserve this idx.
+//
+en.directive('select', ({ el, key }) => {
+  if (el._selReady) return;
+  el._selReady = true;
+  const idx = +key.split('.').pop();
+  el.dataset.idx = idx;
+  el.addEventListener('click', () => { data.selectedIdx = idx; });
+});
+
+// ── en-chart ─────────────────────────────────────────────────────────────────
+//
+// Reads sparkline from rawCoins (plain array) — avoids reactive proxy overhead
+// and ensures it always has the latest data after a silent refresh.
+//
+let uplotInst = null;
+
+en.directive('chart', ({ el, value }) => {
+  const idx = +value;
+  if (idx < 0 || !rawCoins.length) return;
+
+  // Read sparkline from rawCoins (always up-to-date, no proxy overhead)
+  const coin = rawCoins[idx];
+  if (!coin) return;
+
+  const ys = coin.sparkline.slice(); // plain array copy
+  if (!ys.length) {
+    el.innerHTML = '<p style="padding:1rem;color:#94a3b8;font-size:12px">No sparkline data.</p>';
+    data.chartTitle = coin.name + ' — no data';
+    return;
+  }
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  const step   = (7 * 24 * 3600) / ys.length;
+  const xs     = Array.from({ length: ys.length }, (_, i) => nowSec - (ys.length - 1 - i) * step);
+  const isUp   = ys[ys.length - 1] >= ys[0];
+  const clr    = isUp ? '#16a34a' : '#dc2626';
+  const pct    = ys[0] ? (((ys[ys.length - 1] - ys[0]) / ys[0]) * 100).toFixed(2) : '0.00';
+
+  data.chartTitle = `${coin.name} (${coin.symbol})  ${isUp ? '+' : ''}${pct}%  7d`;
+
+  if (uplotInst) { uplotInst.destroy(); uplotInst = null; }
+  el.innerHTML = '';
+
+  uplotInst = new uPlot(
+    {
+      width: el.offsetWidth || 468, height: 220,
+      cursor: { show: true, drag: { x: true, y: false } },
+      select: { show: false }, legend: { show: false },
+      series: [{}, { label: coin.symbol, stroke: clr, fill: clr + '18', width: 1.5 }],
+      axes: [
+        {
+          stroke: '#94a3b8', ticks: { stroke: '#e2e8f0', width: 1 }, grid: { stroke: '#f8fafc', width: 1 },
+          values: (_, vals) => vals.map(v =>
+            v == null ? '' : new Date(v * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          ),
+        },
+        {
+          stroke: '#94a3b8', ticks: { stroke: '#e2e8f0', width: 1 }, grid: { stroke: '#f1f5f9', width: 1 },
+          size: 80, values: (_, vals) => vals.map(v => v == null ? '' : fmtPrice(v)),
+        },
+      ],
+      scales: { x: { time: true } },
+    },
+    [xs, ys],
+    el,
+  );
+
+  // Reveal the panel reactively — en-cls="chartVisible:visible" handles the class
+  data.chartVisible = true;
+});
+
+// ── en-drag ───────────────────────────────────────────────────────────────────
+//
+// Fires once at boot (bound to data.ready). Attaches mousedown drag logic
+// to the handle element. Uses el.parentElement to reference the panel,
+// so no global chartPanel DOM ref is needed.
+//
+en.directive('drag', ({ el }) => {
+  if (el._dragReady) return;
+  el._dragReady = true;
+  const panel = el.parentElement;
+  el.addEventListener('mousedown', e => {
+    if (e.target.closest('button')) return;
+    const ox = panel.offsetLeft - e.clientX;
+    const oy = panel.offsetTop  - e.clientY;
+    function onMove(e) {
+      panel.style.cssText +=
+        `;left:${Math.max(0, e.clientX + ox)}px;top:${Math.max(0, e.clientY + oy)}px;right:auto;bottom:auto`;
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', () => document.removeEventListener('mousemove', onMove), { once: true });
+  });
+});
+
+// ── en-click (parametric) ────────────────────────────────────────────────────
+
+const actions = {};
+
+en.directive('click', ({ el, param }) => {
+  if (el._clickReady) return;
+  el._clickReady = true;
+  el.addEventListener('click', () => { if (param) actions[param]?.(); });
+}, true);
+
+// ─── Reactive values that fire the directives above ───────────────────────────
+
+data.sortKey   = 'rank';
+data.sortAsc   = true;
+// sortSig fires en-sort-header for all <th>s immediately → shows initial ↑ on #
+data.sortSig   = en.computed(() => data.sortKey + (data.sortAsc ? '+' : '-'));
+// autoRefresh fires en-cls on #auto-badge → adds .on class on boot
+data.autoRefresh = true;
+data.countdown   = 10;
+// autoLabel fires en-mark on #auto-badge → shows initial '⟳ 10s'
+data.autoLabel = en.computed(() => data.autoRefresh ? '⟳ ' + data.countdown + 's' : '⟳ off');
+
+// ─── Search: debounced filterDOM ──────────────────────────────────────────────
+//
+// en-model updates data.search on every keystroke.
+// The watch debounces by 200ms before touching the DOM.
+
+en.watch('search', debounce(filterDOM, 200));
+
+// ─── Actions ─────────────────────────────────────────────────────────────────
+
+actions.refresh = () => {
+  data.loading = true;
+  data.status  = '';
+  fetchCoins();
+};
+
+// en-cls="chartVisible:visible" removes .visible when chartVisible → false
+actions.closeChart = () => { data.chartVisible = false; };
+
+actions.toggleAuto = () => {
+  data.autoRefresh = !data.autoRefresh;
+  // en-cls="autoRefresh:on" on #auto-badge handles the .on class reactively
+  if (data.autoRefresh) data.countdown = 10;
+};
+
+// ─── Fetch ────────────────────────────────────────────────────────────────────
+
+const API_URL =
+  'https://api.coingecko.com/api/v3/coins/markets' +
+  '?vs_currency=usd&order=market_cap_desc&per_page=50&page=1' +
+  '&sparkline=true&price_change_percentage=7d';
+
+function parseCoins(raw) {
+  return raw.map((c, i) => ({
+    rank:      i + 1,
+    name:      c.name,
+    symbol:    c.symbol.toUpperCase(),
+    price:     c.current_price,
+    change24h: c.price_change_percentage_24h,
+    change7d:  c.price_change_percentage_7d_in_currency,
+    marketCap: c.market_cap,
+    volume:    c.total_volume,
+    sparkline: c.sparkline_in_7d?.price ?? [],
+  }));
+}
+
+async function fetchCoins() {
+  try {
+    const res = await fetch(API_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const raw = await res.json();
+    rawCoins = parseCoins(raw);
+
+    // data.loading = false removes the en-if="loading" row automatically,
+    // and data.coins = [...] triggers uentropy to render all rows exactly once.
+    en.batch(() => {
+      data.coins      = rawCoins.slice();
+      data.loading    = false;
+      data.status     = raw.length + ' coins loaded';
+      data.lastUpdate = new Date().toLocaleTimeString();
+    });
+
+    // After uentropy renders, apply current filter + sort purely via DOM ops
+    filterDOM();
+    sortDOM();
+
+    if (data.selectedIdx < 0) {
+      const first = coinTbody.querySelector('tr[data-idx]');
+      if (first) data.selectedIdx = +first.dataset.idx;
+    }
+  } catch (e) {
+    data.loading = false;
+    data.status  = '⚠ ' + e.message;
+  }
+}
+
+// Silent background refresh — never shows loading state.
+// Updates rawCoins (for chart sparklines) and patches each coin's numeric
+// fields individually via the reactive proxy so only the changed cells
+// re-render. No full array rebuild, no row destroy/clone cycle.
+async function silentRefresh() {
+  try {
+    const res = await fetch(API_URL);
+    if (!res.ok) return;
+    const raw   = await res.json();
+    const fresh = parseCoins(raw);
+
+    // Update rawCoins first so sparklines are current before chart re-renders
+    rawCoins = fresh;
+
+    en.batch(() => {
+      for (let i = 0; i < fresh.length && i < data.coins.length; i++) {
+        const proxy = data.coins[i]; // reactive proxy for row i
+        const f     = fresh[i];
+        // Only set fields that are bound to directives (price, pct, large cells)
+        proxy.price     = f.price;
+        proxy.change24h = f.change24h;
+        proxy.change7d  = f.change7d;
+        proxy.marketCap = f.marketCap;
+        proxy.volume    = f.volume;
+      }
+      data.lastUpdate = new Date().toLocaleTimeString();
+    });
+
+    // Re-sort since prices / market caps may have changed
+    sortDOM();
+
+    // Refresh chart if it's open (sparkline updated in rawCoins above)
+    const si = data.selectedIdx;
+    if (si >= 0 && data.chartVisible) {
+      data.selectedIdx = -1;
+      data.selectedIdx = si;
+    }
+  } catch { /* silent fail */ }
+}
+
+// ─── Auto-refresh ticker ──────────────────────────────────────────────────────
+
+setInterval(() => {
+  if (!data.autoRefresh || data.loading) return;
+  data.countdown--;
+  if (data.countdown <= 0) {
+    data.countdown = 10;
+    silentRefresh();
+  }
+}, 1000);
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+
+fetchCoins();
+data.ready = true; // fires en-click (refresh, closeChart, toggleAuto) + en-drag
+</script>
+</body>
+</html>
